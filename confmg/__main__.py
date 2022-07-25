@@ -16,7 +16,7 @@ import platform
 from datetime import datetime
 
 difftool = "git --no-pager diff --no-index"
-configs_dir = os.path.abspath(os.path.expanduser("~/.confmgr"))
+configs_dir = os.path.abspath(os.path.expanduser("~/.confmg"))
 backup_dir = "backup"
 
 
@@ -44,7 +44,7 @@ def _get_entries() -> dict:
 
     # load the configs file
     # TODO check existence
-    configs = _load_yaml(os.path.join(configs_dir, "confmgr.yaml"))
+    configs = _load_yaml(os.path.join(configs_dir, "confmg.yaml"))
 
     time_string = datetime.now().strftime(r"%Y%m%d%H%M%S")
 

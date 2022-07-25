@@ -1,1 +1,1 @@
-# confmgr
+# confmg
