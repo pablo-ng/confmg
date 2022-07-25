@@ -6,6 +6,8 @@ Options:
 - list: list configs available for this platform
 """
 
+__version__ = "1.0.0"
+
 import os
 import sys
 import yaml
@@ -16,6 +18,7 @@ from datetime import datetime
 difftool = "git --no-pager diff --no-index"
 configs_dir = os.path.abspath(os.path.expanduser("~/.confmgr"))
 backup_dir = "backup"
+
 
 def _get_platform() -> str:
     system_name = platform.system()
@@ -28,12 +31,14 @@ def _get_platform() -> str:
     else:
         sys.exit("platform {} is not supported".format(system_name))
 
+
 def _load_yaml(file_path) -> dict:
     with open(file_path, "r") as f:
         try:
             return yaml.safe_load(f)
         except yaml.YAMLError as e:
             sys.exit("invalid yaml file:\n{}".format(e))
+
 
 def _get_entries() -> dict:
 
@@ -60,6 +65,7 @@ def _get_entries() -> dict:
                     sys.exit("no source specified for {}".format(label))
     return entries
 
+
 def _iter_labels(labels):
     entries = _get_entries()
     if len(labels) < 1:
@@ -71,6 +77,7 @@ def _iter_labels(labels):
                 yield label, entry
             else:
                 print("label {} is invalid\n".format(label))
+
 
 def _iter_labels_safe(labels, need_src=False, need_dest=False, show_errors=True):
     for label, entry in _iter_labels(labels):
@@ -84,11 +91,13 @@ def _iter_labels_safe(labels, need_src=False, need_dest=False, show_errors=True)
         elif show_errors:
             print(err)
 
-def fetch(labels):    
+
+def fetch(labels):
     for label, entry in _iter_labels_safe(labels, need_dest=True):
         print("fetching {} ({} -> {})".format(label, entry["dest"], entry["src_rel"]))
         os.makedirs(os.path.dirname(entry["src"]), exist_ok=True)
         shutil.copyfile(entry["dest"], entry["src"])
+
 
 def apply(labels):
     for label, entry in _iter_labels_safe(labels, need_src=True, need_dest=True):
@@ -96,6 +105,7 @@ def apply(labels):
         os.makedirs(os.path.dirname(entry["backup"]), exist_ok=True)
         shutil.copyfile(entry["dest"], entry["backup"])
         shutil.copyfile(entry["src"], entry["dest"])
+
 
 def edit(labels):
     for label, entry in _iter_labels_safe(labels, need_src=True):
@@ -105,17 +115,20 @@ def edit(labels):
         else:
             raise NotImplementedError
 
+
 def diff(labels):
     for label, entry in _iter_labels_safe(labels, need_src=True, need_dest=True):
         print("showing diff for {}".format(label))
         os.system('{} "{}" "{}"'.format(difftool, entry["dest"], entry["src_rel"]))
         print("")
 
+
 def ignore(labels):
     # TODO
     pass
 
-if __name__ == "__main__":
+
+def main():
 
     # parse arguments
     if len(sys.argv) < 2:
@@ -139,3 +152,6 @@ if __name__ == "__main__":
     else:
         print(__doc__, end="")
 
+
+if __name__ == "__main__":
+    main()
