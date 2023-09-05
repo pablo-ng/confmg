@@ -26,7 +26,7 @@ impl Config {
         Ok(_write_file(path, content_str)?)
     }
 
-    pub fn get_entries(&self) -> hash_map::Iter<'_, String, ConfigEntry> {
+    pub fn _get_entries(&self) -> hash_map::Iter<'_, String, ConfigEntry> {
         self.0.iter()
     }
 

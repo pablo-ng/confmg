@@ -24,7 +24,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Show and resolve diffs between confmg and local config
-    Diff,
+    Diff(LabelsArgs),
     /// Edit the config file
     EditConfig,
     /// Edit a source file
@@ -41,6 +41,12 @@ enum Commands {
 struct LabelArgs {
     /// Label of the config
     label: String,
+}
+
+#[derive(Args)]
+struct LabelsArgs {
+    /// Labels of the configs or none to run on all
+    labels: Vec<String>,
 }
 
 fn main() -> Result<()> {
@@ -70,16 +76,23 @@ fn main() -> Result<()> {
     }
 
     // diff command
-    if let Commands::Diff = cli.command {
-        for (label, entry) in config.get_entries() {
-            if let Some(diff) = entry.get_diff(&source_base) {
-                println!("Diff for '{}':", label);
-                match diff {
-                    Ok(diff) => {
-                        println!("{}", diff);
-                    }
-                    Err(err) => {
-                        eprintln!("{}\n", err);
+    if let Commands::Diff(labels_args) = cli.command {
+        let labels = if labels_args.labels.len() > 0 {
+            labels_args.labels
+        } else {
+            config.get_labels().map(|label| label.to_owned()).collect()
+        };
+        for label in labels {
+            if let Some(entry) = config.get_entry(&label) {
+                if let Some(diff) = entry.get_diff(&source_base) {
+                    println!("Diff for '{}':", label);
+                    match diff {
+                        Ok(diff) => {
+                            println!("{}", diff);
+                        }
+                        Err(err) => {
+                            eprintln!("{}\n", err);
+                        }
                     }
                 }
             }
