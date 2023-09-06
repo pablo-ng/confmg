@@ -18,7 +18,7 @@ mod os;
 struct Cli {
     #[command(subcommand)]
     command: Commands,
-    /// Confmg config file path
+    /// Confmg config file path (overwrite with CONFMG_CONFIG env var)
     #[arg(short, long, default_value = "~/.confmg/confmg.json")]
     config_file: PathBuf,
 }
@@ -57,7 +57,12 @@ struct LabelsArgs {
 
 fn main() -> Result<()> {
     // parse CLI
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+
+    // overwrite config_file with CONFMG_CONFIG env var
+    if let Some(config_file) = std::env::var_os("CONFMG_CONFIG") {
+        cli.config_file = config_file.into();
+    }
 
     // info command
     if let Commands::Info = cli.command {
