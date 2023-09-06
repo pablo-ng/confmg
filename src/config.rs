@@ -8,8 +8,8 @@ use diffy::{create_patch, PatchFormatter};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    fs::{_write_file, is_file, read_file},
     os::{CURRENT_OS, OS},
-    utils::{_write_file, is_file, read_file},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,7 +26,7 @@ impl Config {
         Ok(_write_file(path, content_str)?)
     }
 
-    pub fn _get_entries(&self) -> hash_map::Iter<'_, String, ConfigEntry> {
+    pub fn get_entries(&self) -> hash_map::Iter<'_, String, ConfigEntry> {
         self.0.iter()
     }
 

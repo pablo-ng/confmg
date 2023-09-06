@@ -4,12 +4,14 @@ use anyhow::{anyhow, Result};
 use clap::{Args, Parser, Subcommand};
 
 use config::Config;
+use fs::open_file;
 use os::CURRENT_OS;
-use utils::open_file;
+
+use crate::fs::{copy_file, is_file};
 
 mod config;
+mod fs;
 mod os;
-mod utils;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -23,15 +25,19 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Show and resolve diffs between confmg and local config
+    /// Show and resolve diffs between source and target files
     Diff(LabelsArgs),
-    /// Edit the config file
+    /// Edit the confmg config file
     EditConfig,
     /// Edit a source file
     EditSource(LabelArgs),
     /// Edit a target file if it exists
     EditTarget(LabelArgs),
-    /// List available configs
+    /// Overwrite existing config files with source files
+    ApplySource(LabelsArgs),
+    /// Overwrite source files with existing config files
+    ApplyTarget(LabelsArgs),
+    /// List available configs for this platform
     List,
     /// Print information
     Info,
@@ -56,6 +62,7 @@ fn main() -> Result<()> {
     // info command
     if let Commands::Info = cli.command {
         println!("Current OS: {}", *CURRENT_OS);
+        println!("Confmg Config File: {}", cli.config_file.display());
         return Ok(());
     }
 
@@ -67,41 +74,63 @@ fn main() -> Result<()> {
         .ok_or(anyhow!("Failed to get config file directory."))?
         .to_path_buf();
 
-    // list command
     if let Commands::List = cli.command {
-        for label in config.get_labels() {
-            println!("{}", label);
+        for (label, entry) in config.get_entries() {
+            if entry.get_current_target_path().is_some() {
+                println!("{}", label);
+            }
         }
-        return Ok(());
-    }
-
-    // diff command
-    if let Commands::Diff(labels_args) = cli.command {
-        let labels = if labels_args.labels.len() > 0 {
-            labels_args.labels
+    } else if let Commands::Diff(labels_args)
+    | Commands::ApplySource(labels_args)
+    | Commands::ApplyTarget(labels_args) = &cli.command
+    {
+        let labels: Vec<&String> = if labels_args.labels.len() > 0 {
+            labels_args.labels.iter().collect()
         } else {
-            config.get_labels().map(|label| label.to_owned()).collect()
+            config.get_labels().collect()
         };
         for label in labels {
             if let Some(entry) = config.get_entry(&label) {
-                if let Some(diff) = entry.get_diff(&source_base) {
-                    println!("Diff for '{}':", label);
-                    match diff {
-                        Ok(diff) => {
-                            println!("{}", diff);
-                        }
-                        Err(err) => {
-                            eprintln!("{}\n", err);
+                match &cli.command {
+                    Commands::Diff(_) => {
+                        if let Some(diff) = entry.get_diff(&source_base) {
+                            println!("Diff for '{}':", label);
+                            match diff {
+                                Ok(diff) => {
+                                    println!("{}", diff);
+                                }
+                                Err(err) => {
+                                    eprintln!("{}\n", err);
+                                }
+                            }
                         }
                     }
+                    Commands::ApplySource(_) | Commands::ApplyTarget(_) => {
+                        if let Some(target_path) = entry.get_current_target_path() {
+                            if is_file(&target_path)? {
+                                let source_path = entry.get_source_path(&source_base);
+                                let (from_path, to_path) = match &cli.command {
+                                    Commands::ApplySource(_) => (source_path, target_path),
+                                    Commands::ApplyTarget(_) => (target_path, source_path),
+                                    _ => unreachable!(),
+                                };
+                                println!(
+                                    "Copying from '{}' to '{}'",
+                                    from_path.display(),
+                                    to_path.display()
+                                );
+                                copy_file(from_path, to_path)?;
+                            }
+                        }
+                    }
+                    _ => unreachable!(),
                 }
             }
         }
         return Ok(());
-    }
-
-    // edit commands
-    if let Commands::EditConfig | Commands::EditSource(_) | Commands::EditTarget(_) = &cli.command {
+    } else if let Commands::EditConfig | Commands::EditSource(_) | Commands::EditTarget(_) =
+        &cli.command
+    {
         let editor = std::env::var_os("EDITOR").ok_or(anyhow!(
             "Default editor could not be found. Please set the EDITOR environment variable."
         ))?;

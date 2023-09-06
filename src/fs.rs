@@ -67,3 +67,8 @@ pub fn open_file<P: AsRef<OsStr> + AsRef<Path>, E: AsRef<OsStr>>(editor: E, path
         ))?;
     Ok(())
 }
+
+pub fn copy_file<P: AsRef<Path>>(from: P, to: P) -> Result<()> {
+    fs::copy(expand_tilde(from)?, expand_tilde(to)?)?;
+    Ok(())
+}
