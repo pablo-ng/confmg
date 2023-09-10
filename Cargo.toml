@@ -3,6 +3,10 @@ name = "confmg"
 version = "0.1.0"
 edition = "2021"
 description = "Tool for managing personal config files on different platforms."
+repository = "https://github.com/pablo-ng/confmg"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+documentation = "https://github.com/pablo-ng/confmg"
 
 [dependencies]
 anyhow = "1.0.72"
