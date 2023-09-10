@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{io::Write, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use clap::{Args, Parser, Subcommand};
@@ -33,12 +33,29 @@ enum Commands {
     EditSource(LabelArgs),
     /// Edit a target file if it exists
     EditTarget(LabelArgs),
-    /// Overwrite existing config files with source files
-    ApplySource(LabelsArgs),
+    /// Overwrite existing target config files with source files
+    ApplySource {
+        #[command(flatten)]
+        labels_args: LabelsArgs,
+        #[command(flatten)]
+        answer_yes: AnswerYes,
+        /// Copy if target file does not exist yet
+        #[arg(short, long, default_value_t = false)]
+        copy_nonexistent: bool,
+    },
     /// Overwrite source files with existing config files
-    ApplyTarget(LabelsArgs),
+    ApplyTarget {
+        #[command(flatten)]
+        labels_args: LabelsArgs,
+        #[command(flatten)]
+        answer_yes: AnswerYes,
+    },
     /// List available configs for this platform
-    List,
+    List {
+        /// Show only configs where target file exists
+        #[arg(short = 'e', long, default_value_t = false)]
+        only_existing: bool,
+    },
     /// Print information
     Info,
 }
@@ -53,6 +70,13 @@ struct LabelArgs {
 struct LabelsArgs {
     /// Labels of the configs or none to run on all
     labels: Vec<String>,
+}
+
+#[derive(Args)]
+struct AnswerYes {
+    /// Answer yes to all questions
+    #[arg(short = 'y', default_value_t = false)]
+    answer_yes: bool,
 }
 
 fn main() -> Result<()> {
@@ -79,57 +103,102 @@ fn main() -> Result<()> {
         .ok_or(anyhow!("Failed to get config file directory."))?
         .to_path_buf();
 
-    if let Commands::List = cli.command {
+    if let Commands::List { only_existing } = cli.command {
         for (label, entry) in config.get_entries() {
-            if entry.get_current_target_path().is_some() {
-                println!("{}", label);
+            if let Some(target_path) = entry.get_current_target_path() {
+                if !only_existing || is_file(target_path)? {
+                    println!("{}", label);
+                }
             }
         }
     } else if let Commands::Diff(labels_args)
-    | Commands::ApplySource(labels_args)
-    | Commands::ApplyTarget(labels_args) = &cli.command
+    | Commands::ApplySource { labels_args, .. }
+    | Commands::ApplyTarget { labels_args, .. } = &cli.command
     {
         let labels: Vec<&String> = if labels_args.labels.len() > 0 {
             labels_args.labels.iter().collect()
         } else {
-            config.get_labels().collect()
+            config
+                .get_entries()
+                .filter(|(_, entry)| entry.get_current_target_path().is_some())
+                .map(|(label, _)| label)
+                .collect()
         };
         for label in labels {
             if let Some(entry) = config.get_entry(&label) {
-                match &cli.command {
-                    Commands::Diff(_) => {
-                        if let Some(diff) = entry.get_diff(&source_base) {
-                            println!("Diff for '{}':", label);
-                            match diff {
-                                Ok(diff) => {
-                                    println!("{}", diff);
+                if let Some(target_path) = entry.get_current_target_path() {
+                    match &cli.command {
+                        Commands::Diff(_) => {
+                            if is_file(target_path)? {
+                                if let Some(diff) = entry.get_diff(&source_base) {
+                                    println!("Diff for '{}':", label);
+                                    match diff {
+                                        Ok(diff) => {
+                                            println!("{}", diff);
+                                        }
+                                        Err(err) => {
+                                            eprintln!("{}\n", err);
+                                        }
+                                    }
                                 }
-                                Err(err) => {
-                                    eprintln!("{}\n", err);
-                                }
+                            } else {
+                                println!(
+                                    "The target file for config '{}' could not be found.",
+                                    label
+                                )
                             }
                         }
-                    }
-                    Commands::ApplySource(_) | Commands::ApplyTarget(_) => {
-                        if let Some(target_path) = entry.get_current_target_path() {
-                            if is_file(&target_path)? {
+                        Commands::ApplySource { answer_yes, .. }
+                        | Commands::ApplyTarget { answer_yes, .. } => {
+                            let copy_nonexistent = if let Commands::ApplySource {
+                                copy_nonexistent,
+                                ..
+                            } = cli.command
+                            {
+                                copy_nonexistent
+                            } else {
+                                false
+                            };
+                            if copy_nonexistent || is_file(&target_path)? {
                                 let source_path = entry.get_source_path(&source_base);
                                 let (from_path, to_path) = match &cli.command {
-                                    Commands::ApplySource(_) => (source_path, target_path),
-                                    Commands::ApplyTarget(_) => (target_path, source_path),
+                                    Commands::ApplySource { .. } => (source_path, target_path),
+                                    Commands::ApplyTarget { .. } => (target_path, source_path),
                                     _ => unreachable!(),
                                 };
-                                println!(
-                                    "Copying from '{}' to '{}'",
-                                    from_path.display(),
-                                    to_path.display()
-                                );
-                                copy_file(from_path, to_path)?;
+                                let answer_yes = answer_yes.answer_yes || {
+                                    print!(
+                                        "Do you want to copy '{}' to '{}'? (y/n)",
+                                        from_path.display(),
+                                        to_path.display()
+                                    );
+                                    std::io::stdout().flush()?;
+                                    let mut answer = String::new();
+                                    std::io::stdin().read_line(&mut answer)?;
+                                    answer.starts_with("y")
+                                };
+                                if answer_yes {
+                                    println!(
+                                        "Copying from '{}' to '{}'",
+                                        from_path.display(),
+                                        to_path.display()
+                                    );
+                                    copy_file(from_path, to_path)?;
+                                }
+                            } else {
+                                println!("The target file for config '{}' could not be found. Use the -c flag to copy anyways.", label);
                             }
                         }
+                        _ => unreachable!(),
                     }
-                    _ => unreachable!(),
+                } else {
+                    println!(
+                        "There is no target file for config '{}' on this platform",
+                        label
+                    );
                 }
+            } else {
+                println!("No config with label '{}' found", label);
             }
         }
         return Ok(());
@@ -148,7 +217,7 @@ fn main() -> Result<()> {
                 match &cli.command {
                     Commands::EditSource(_) => entry.get_source_path(&source_base),
                     Commands::EditTarget(_) => entry.get_current_target_path().ok_or(anyhow!(
-                        "There is no current target file for config '{}'",
+                        "There is no target file for config '{}' on this platform",
                         label_args.label
                     ))?,
                     _ => unreachable!(),

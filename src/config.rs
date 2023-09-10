@@ -34,7 +34,7 @@ impl Config {
         self.0.get(label)
     }
 
-    pub fn get_labels(&self) -> hash_map::Keys<'_, String, ConfigEntry> {
+    pub fn _get_labels(&self) -> hash_map::Keys<'_, String, ConfigEntry> {
         self.0.keys()
     }
 }

@@ -69,6 +69,12 @@ pub fn open_file<P: AsRef<OsStr> + AsRef<Path>, E: AsRef<OsStr>>(editor: E, path
 }
 
 pub fn copy_file<P: AsRef<Path>>(from: P, to: P) -> Result<()> {
-    fs::copy(expand_tilde(from)?, expand_tilde(to)?)?;
+    let to_path = expand_tilde(to)?;
+    fs::create_dir_all(
+        &to_path
+            .parent()
+            .ok_or(anyhow!("Failed to get parent directory."))?,
+    )?;
+    fs::copy(expand_tilde(from)?, &to_path)?;
     Ok(())
 }
