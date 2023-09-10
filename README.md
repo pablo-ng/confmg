@@ -66,3 +66,5 @@ Here is an example confmg config file:
 ## TODOs
 
 - add the possibility to execute scripts
+- use https://github.com/mitsuhiko/similar for diffs?
+- add commands to add/edit/remove configs (see https://docs.rs/clap/latest/clap/_derive/_cookbook/typed_derive/index.html)
