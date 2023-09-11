@@ -143,7 +143,7 @@ fn main() -> Result<()> {
                                 }
                             } else {
                                 println!(
-                                    "The target file for config '{}' could not be found.",
+                                    "The target file for config '{}' could not be found.\n",
                                     label
                                 )
                             }
