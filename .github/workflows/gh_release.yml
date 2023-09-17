@@ -1,9 +1,8 @@
 name: GitHub Release
 on:
   push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+    tags:
+      - 'v*'
 env:
   CARGO_TERM_COLOR: always
 jobs:
