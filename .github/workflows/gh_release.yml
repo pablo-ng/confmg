@@ -49,6 +49,8 @@ jobs:
     needs: [build-linux, build-windows]
     steps:
     - uses: actions/download-artifact@v3
+    - name: Move Artifacts
+      run: mv */* .        
     - name: Release
       uses: fnkr/github-action-ghr@v1
       if: startsWith(github.ref, 'refs/tags/')
