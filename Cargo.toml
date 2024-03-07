@@ -1,6 +1,6 @@
 [package]
 name = "confmg"
-version = "0.1.0"
+version = "1.0.2"
 edition = "2021"
 description = "Tool for managing personal config files on different platforms."
 repository = "https://github.com/pablo-ng/confmg"
