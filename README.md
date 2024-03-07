@@ -14,12 +14,17 @@ The configuration for confmg is written in a JSON file. The default path is `~/.
 
 ```json
 {
-  "<Label for this config>": {
-    "source": "<Path to the source config file relative to this file (usually located in the same folder)>",
-    "targets": {
-      "windows": "<Path to the target config file on Windows (optional)>",
-      "linux": "<Path to the target config file on Linux (optional)>",
-      "macos": "<Path to the target config file on MacOS (optional)>"
+  "config": {
+    "diffCommand": "<Custom diff command to execute (optional)>"
+  },
+  "configs": {
+    "<Label for this config>": {
+      "source": "<Path to the source config file relative to this file (usually located in the same folder)>",
+      "targets": {
+        "windows": "<Path to the target config file on Windows (optional)>",
+        "linux": "<Path to the target config file on Linux (optional)>",
+        "macos": "<Path to the target config file on MacOS (optional)>"
+      }
     }
   }
 }
@@ -29,27 +34,32 @@ Here is an example confmg config file:
 
 ```json
 {
-  "git": {
-    "source": ".gitconfig",
-    "targets": {
-      "linux": "~/.gitconfig",
-      "macos": "~/.gitconfig",
-      "windows": "~/.gitconfig"
-    }
+  "config": {
+    "diffCommand": "delta"
   },
-  "bashrc": {
-    "source": ".bashrc",
-    "targets": {
-      "linux": "~/.bashrc",
-      "macos": "~/.bashrc"
-    }
-  },
-  "vscode_settings": {
-    "source": "vscode/settings.json",
-    "targets": {
-      "linux": "~/.config/Code/User/settings.json",
-      "macos": "~/Library/Application Support/Code/User/settings.json",
-      "windows": "~/AppData/Roaming/Code/User/settings.json"
+  "configs": {
+    "git": {
+      "source": ".gitconfig",
+      "targets": {
+        "linux": "~/.gitconfig",
+        "macos": "~/.gitconfig",
+        "windows": "~/.gitconfig"
+      }
+    },
+    "bashrc": {
+      "source": ".bashrc",
+      "targets": {
+        "linux": "~/.bashrc",
+        "macos": "~/.bashrc"
+      }
+    },
+    "vscode_settings": {
+      "source": "vscode/settings.json",
+      "targets": {
+        "linux": "~/.config/Code/User/settings.json",
+        "macos": "~/Library/Application Support/Code/User/settings.json",
+        "windows": "~/AppData/Roaming/Code/User/settings.json"
+      }
     }
   }
 }
