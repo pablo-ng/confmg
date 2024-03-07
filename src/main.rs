@@ -130,7 +130,9 @@ fn main() -> Result<()> {
                     match &cli.command {
                         Commands::Diff(_) => {
                             if is_file(target_path)? {
-                                if let Some(diff) = entry.get_diff(&source_base) {
+                                if let Some(diff) =
+                                    entry.get_diff(&source_base, &config.config.diff_command)
+                                {
                                     println!("Diff for '{}':", label);
                                     match diff {
                                         Ok(diff) => {

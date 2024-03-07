@@ -1,6 +1,7 @@
 use std::{
     collections::{hash_map, HashMap},
     path::{Path, PathBuf},
+    process::Command,
 };
 
 use anyhow::{Context, Result};
@@ -8,12 +9,21 @@ use diffy::{create_patch, PatchFormatter};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    fs::{_write_file, is_file, read_file},
+    fs::{_write_file, expand_tilde, is_file, read_file},
     os::{CURRENT_OS, OS},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Config(HashMap<String, ConfigEntry>);
+pub struct Configuration {
+    #[serde(rename = "diffCommand")]
+    pub diff_command: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Config {
+    pub config: Configuration,
+    configs: HashMap<String, ConfigEntry>,
+}
 
 impl Config {
     pub fn read_file<P: AsRef<Path>>(path: P) -> Result<Self> {
@@ -27,15 +37,15 @@ impl Config {
     }
 
     pub fn get_entries(&self) -> hash_map::Iter<'_, String, ConfigEntry> {
-        self.0.iter()
+        self.configs.iter()
     }
 
     pub fn get_entry(&self, label: &String) -> Option<&ConfigEntry> {
-        self.0.get(label)
+        self.configs.get(label)
     }
 
     pub fn _get_labels(&self) -> hash_map::Keys<'_, String, ConfigEntry> {
-        self.0.keys()
+        self.configs.keys()
     }
 }
 
@@ -75,26 +85,39 @@ impl ConfigEntry {
         }
     }
 
-    pub fn get_diff<P: AsRef<Path>>(&self, source_base: P) -> Option<Result<String>> {
-        // get file contents
-        let current_target_content = match self.get_current_target_content()? {
-            Ok(current_target_content) => current_target_content,
-            Err(err) => return Some(Err(err)),
-        };
-        let source_content = match self.get_source_content(source_base) {
-            Ok(source_content) => source_content,
-            Err(err) => return Some(Err(err)),
-        };
-
-        // get diff
-        let patch = create_patch(&source_content, &current_target_content);
-        if patch.hunks().len() > 0 {
-            Some(Ok(PatchFormatter::new()
-                .with_color()
-                .fmt_patch(&patch)
-                .to_string()))
-        } else {
+    pub fn get_diff<P: AsRef<Path>>(
+        &self,
+        source_base: P,
+        diff_command: &Option<String>,
+    ) -> Option<Result<String>> {
+        if let Some(diff_command) = diff_command {
+            Command::new(diff_command)
+                .arg(expand_tilde(self.get_current_target_path()?).ok()?)
+                .arg(expand_tilde(self.get_source_path(source_base)).ok()?)
+                .status()
+                .unwrap();
             None
+        } else {
+            // get file contents
+            let current_target_content = match self.get_current_target_content()? {
+                Ok(current_target_content) => current_target_content,
+                Err(err) => return Some(Err(err)),
+            };
+            let source_content = match self.get_source_content(source_base) {
+                Ok(source_content) => source_content,
+                Err(err) => return Some(Err(err)),
+            };
+
+            // get diff
+            let patch = create_patch(&source_content, &current_target_content);
+            if patch.hunks().len() > 0 {
+                Some(Ok(PatchFormatter::new()
+                    .with_color()
+                    .fmt_patch(&patch)
+                    .to_string()))
+            } else {
+                None
+            }
         }
     }
 }

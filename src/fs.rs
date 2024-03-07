@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 
-fn expand_tilde<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
+pub fn expand_tilde<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     // from https://stackoverflow.com/a/54306906/9616820
     let path = path.as_ref();
     if !path.starts_with("~") {
